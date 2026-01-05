@@ -1,14 +1,13 @@
 import os
-from typing import Dict, List, Optional, Iterator
+from typing import Dict, List, Optional
 import json
-from openai import OpenAI
-from openai.types.chat import ChatCompletion, ChatCompletionChunk
+import google.generativeai as genai
 import time
 
 
 class FinancialAgent:
     """
-    AI agent for personalized financial planning using LLM with modern API practices.
+    AI agent for personalized financial planning using Google Gemini API.
     """
     
     SYSTEM_PROMPT = """You are an expert financial advisor AI. Your role is to:
@@ -35,89 +34,92 @@ When making recommendations:
     # Define tools for function calling
     TOOLS = [
         {
-            "type": "function",
-            "function": {
-                "name": "calculate_savings_potential",
-                "description": "Calculate potential savings based on current spending patterns",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "target_category": {
-                            "type": "string",
-                            "description": "The spending category to analyze"
+            "function_declarations": [
+                {
+                    "name": "calculate_savings_potential",
+                    "description": "Calculate potential savings based on current spending patterns",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "target_category": {
+                                "type": "string",
+                                "description": "The spending category to analyze"
+                            },
+                            "reduction_percent": {
+                                "type": "number",
+                                "description": "Percentage reduction to simulate"
+                            }
                         },
-                        "reduction_percent": {
-                            "type": "number",
-                            "description": "Percentage reduction to simulate"
-                        }
-                    },
-                    "required": ["target_category", "reduction_percent"]
+                        "required": ["target_category", "reduction_percent"]
+                    }
+                },
+                {
+                    "name": "simulate_loan_impact",
+                    "description": "Simulate the impact of taking a loan on monthly budget",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "loan_amount": {
+                                "type": "number",
+                                "description": "Total loan amount"
+                            },
+                            "interest_rate": {
+                                "type": "number",
+                                "description": "Annual interest rate percentage"
+                            },
+                            "tenure_months": {
+                                "type": "number",
+                                "description": "Loan tenure in months"
+                            }
+                        },
+                        "required": ["loan_amount", "interest_rate", "tenure_months"]
+                    }
+                },
+                {
+                    "name": "check_goal_feasibility",
+                    "description": "Check if a financial goal is achievable with current savings rate",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "goal_amount": {
+                                "type": "number",
+                                "description": "Target amount for the goal"
+                            },
+                            "target_months": {
+                                "type": "number",
+                                "description": "Months to achieve the goal"
+                            }
+                        },
+                        "required": ["goal_amount", "target_months"]
+                    }
                 }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "simulate_loan_impact",
-                "description": "Simulate the impact of taking a loan on monthly budget",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "loan_amount": {
-                            "type": "number",
-                            "description": "Total loan amount"
-                        },
-                        "interest_rate": {
-                            "type": "number",
-                            "description": "Annual interest rate percentage"
-                        },
-                        "tenure_months": {
-                            "type": "number",
-                            "description": "Loan tenure in months"
-                        }
-                    },
-                    "required": ["loan_amount", "interest_rate", "tenure_months"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "check_goal_feasibility",
-                "description": "Check if a financial goal is achievable with current savings rate",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "goal_amount": {
-                            "type": "number",
-                            "description": "Target amount for the goal"
-                        },
-                        "target_months": {
-                            "type": "number",
-                            "description": "Months to achieve the goal"
-                        }
-                    },
-                    "required": ["goal_amount", "target_months"]
-                }
-            }
+            ]
         }
     ]
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-2024-11-20"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash-exp"):
         """
-        Initialize the financial agent with modern OpenAI API.
+        Initialize the financial agent with Google Gemini API.
         
         Args:
-            api_key: OpenAI API key (will use env var if not provided)
-            model: LLM model to use (default: gpt-4o latest snapshot)
+            api_key: Google API key (will use env var if not provided)
+            model: Gemini model to use (default: gemini-2.0-flash-exp for latest)
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+        self.api_key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
         if not self.api_key:
-            raise ValueError("OpenAI API key not provided")
+            raise ValueError("Google API key not provided. Set GEMINI_API_KEY or GOOGLE_API_KEY")
         
-        self.client = OpenAI(api_key=self.api_key)
-        self.model = model
-        self.conversation_history = []
+        # Configure Gemini
+        genai.configure(api_key=self.api_key)
+        
+        # Initialize model with system instruction
+        self.model = genai.GenerativeModel(
+            model_name=model,
+            system_instruction=self.SYSTEM_PROMPT,
+            tools=self.TOOLS
+        )
+        
+        self.chat_session = None
         self.context = {}
         self.max_retries = 3
         self.retry_delay = 2  # seconds
@@ -142,11 +144,14 @@ When making recommendations:
         
         # Create structured context for the agent
         context_msg = self._format_context_structured()
-        self.conversation_history = [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "system", "content": f"User Financial Context:\n{json.dumps(context_msg, indent=2)}"}
-        ]
-    
+        
+        # Start new chat session with context
+        initial_message = f"User Financial Context:\n{json.dumps(context_msg, indent=2)}\n\nI'm ready to help with financial planning questions."
+        self.chat_session = self.model.start_chat(history=[])
+        
+        # Send context as first message
+        response = self.chat_session.send_message(initial_message)
+        
     def chat(self, user_message: str, stream: bool = False) -> str:
         """
         Process user message and generate response with function calling support.
@@ -158,11 +163,9 @@ When making recommendations:
         Returns:
             Agent's response
         """
-        # Add user message to history
-        self.conversation_history.append({
-            "role": "user",
-            "content": user_message
-        })
+        if self.chat_session is None:
+            # Initialize with empty context if not already done
+            self.initialize_context({}, {}, None)
         
         # Generate response with retry logic
         for attempt in range(self.max_retries):
@@ -181,103 +184,44 @@ When making recommendations:
     
     def _chat_complete(self, user_message: str) -> str:
         """Complete chat without streaming."""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=self.conversation_history,
-            tools=self.TOOLS,
-            temperature=0.7,
-            max_tokens=2000,
-            timeout=30.0
-        )
+        response = self.chat_session.send_message(user_message)
         
         # Handle function calling
-        assistant_message = response.choices[0].message
-        
-        # Check if model wants to call a function
-        if assistant_message.tool_calls:
-            # Execute tool calls
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": assistant_message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    } for tc in assistant_message.tool_calls
-                ]
-            })
+        while response.candidates[0].content.parts[0].function_call:
+            function_call = response.candidates[0].content.parts[0].function_call
+            function_name = function_call.name
+            function_args = dict(function_call.args)
             
-            # Execute each tool call
-            for tool_call in assistant_message.tool_calls:
-                function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
-                
-                # Execute the function
-                function_response = self._execute_tool(function_name, function_args)
-                
-                # Add function response to conversation
-                self.conversation_history.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(function_response)
-                })
+            # Execute the function
+            function_response = self._execute_tool(function_name, function_args)
             
-            # Get final response after tool execution
-            final_response = self.client.chat.completions.create(
-                model=self.model,
-                messages=self.conversation_history,
-                temperature=0.7,
-                max_tokens=2000,
-                timeout=30.0
+            # Send function response back to model
+            response = self.chat_session.send_message(
+                genai.protos.Content(
+                    parts=[genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=function_name,
+                            response={"result": function_response}
+                        )
+                    )]
+                )
             )
-            
-            final_message = final_response.choices[0].message.content
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": final_message
-            })
-            
-            return final_message
-        else:
-            # No tool calls, just return the response
-            content = assistant_message.content or ""
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": content
-            })
-            return content
+        
+        return response.text
     
     def _chat_streaming(self, user_message: str) -> str:
         """Chat with streaming response."""
-        stream = self.client.chat.completions.create(
-            model=self.model,
-            messages=self.conversation_history,
-            tools=self.TOOLS,
-            temperature=0.7,
-            max_tokens=2000,
-            stream=True,
-            timeout=30.0
-        )
+        response = self.chat_session.send_message(user_message, stream=True)
         
         full_response = ""
         print("\nAssistant: ", end="", flush=True)
         
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                print(content, end="", flush=True)
-                full_response += content
+        for chunk in response:
+            if chunk.text:
+                print(chunk.text, end="", flush=True)
+                full_response += chunk.text
         
         print()  # New line after streaming
-        
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": full_response
-        })
         
         return full_response
     
@@ -565,25 +509,36 @@ Make it specific and realistic based on their current financial situation."""
     def reset_conversation(self):
         """Reset conversation history while keeping context."""
         context_msg = self._format_context_structured()
-        self.conversation_history = [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "system", "content": f"User Financial Context:\n{json.dumps(context_msg, indent=2)}"}
-        ]
+        initial_message = f"User Financial Context:\n{json.dumps(context_msg, indent=2)}\n\nI'm ready to help with financial planning questions."
+        self.chat_session = self.model.start_chat(history=[])
+        self.chat_session.send_message(initial_message)
     
     def export_conversation(self, filepath: str):
         """Export conversation history to file."""
-        with open(filepath, 'w') as f:
-            json.dump(self.conversation_history, f, indent=2)
-        print(f"Conversation exported to {filepath}")
+        if self.chat_session:
+            history = []
+            for message in self.chat_session.history:
+                history.append({
+                    'role': message.role,
+                    'parts': [part.text if hasattr(part, 'text') else str(part) for part in message.parts]
+                })
+            
+            with open(filepath, 'w') as f:
+                json.dump(history, f, indent=2)
+            print(f"Conversation exported to {filepath}")
+        else:
+            print("No conversation to export")
     
     def get_conversation_summary(self) -> str:
         """Get a summary of the conversation."""
-        if len(self.conversation_history) <= 2:
+        if not self.chat_session or len(self.chat_session.history) <= 1:
             return "No conversation yet."
         
         user_messages = [
-            msg['content'] for msg in self.conversation_history 
-            if msg['role'] == 'user'
+            part.text for msg in self.chat_session.history 
+            if msg.role == 'user'
+            for part in msg.parts
+            if hasattr(part, 'text')
         ]
         
         prompt = f"""Summarize this financial planning conversation in 3-4 bullet points:
@@ -597,14 +552,23 @@ Focus on key recommendations made and action items."""
     
     def get_token_usage_estimate(self) -> Dict:
         """Estimate token usage for the current conversation."""
+        if not self.chat_session:
+            return {
+                "messages": 0,
+                "estimated_tokens": 0,
+                "note": "Gemini API doesn't expose token counts in the same way as OpenAI"
+            }
+        
         total_chars = sum(
-            len(str(msg.get('content', ''))) 
-            for msg in self.conversation_history
+            len(part.text) 
+            for msg in self.chat_session.history 
+            for part in msg.parts
+            if hasattr(part, 'text')
         )
         estimated_tokens = total_chars / 4  # Rough estimate: ~4 chars per token
         
         return {
-            "messages": len(self.conversation_history),
+            "messages": len(self.chat_session.history),
             "estimated_tokens": int(estimated_tokens),
-            "estimated_cost_usd": estimated_tokens * 0.00001  # Rough cost estimate
+            "note": "This is an estimate. Gemini pricing is different from OpenAI"
         }
