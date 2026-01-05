@@ -1,0 +1,64 @@
+Date,Description,Amount,Type
+2024-01-01,Salary Credit,75000,credit
+2024-01-02,Rent Payment,-25000,debit
+2024-01-03,Swiggy Food Order,-450,debit
+2024-01-05,DMart Groceries,-3200,debit
+2024-01-06,Uber Ride,-280,debit
+2024-01-08,Netflix Subscription,-499,debit
+2024-01-10,Medical Store,-850,debit
+2024-01-12,Zomato Order,-620,debit
+2024-01-15,Electricity Bill,-1800,debit
+2024-01-16,Amazon Shopping,-2300,debit
+2024-01-18,Petrol Pump,-2500,debit
+2024-01-20,Movie Tickets,-900,debit
+2024-01-22,Gym Membership,-1500,debit
+2024-01-25,Restaurant,-1800,debit
+2024-01-28,Mobile Recharge,-599,debit
+2024-02-01,Salary Credit,75000,credit
+2024-02-02,Rent Payment,-25000,debit
+2024-02-04,Swiggy Food Order,-520,debit
+2024-02-06,Big Bazaar,-2800,debit
+2024-02-08,Ola Cab,-350,debit
+2024-02-10,Netflix Subscription,-499,debit
+2024-02-12,Apollo Pharmacy,-960,debit
+2024-02-14,Zomato Order,-580,debit
+2024-02-15,Water Bill,-450,debit
+2024-02-16,Flipkart Shopping,-1900,debit
+2024-02-18,Petrol Pump,-2300,debit
+2024-02-20,PVR Cinema,-1100,debit
+2024-02-22,Cafe Coffee Day,-480,debit
+2024-02-25,Dominos Pizza,-890,debit
+2024-02-28,Jio Recharge,-599,debit
+2024-03-01,Salary Credit,75000,credit
+2024-03-01,Freelance Income,15000,credit
+2024-03-02,Rent Payment,-25000,debit
+2024-03-04,Swiggy Food Order,-490,debit
+2024-03-06,Reliance Fresh,-3100,debit
+2024-03-08,Metro Card Recharge,-500,debit
+2024-03-10,Netflix Subscription,-499,debit
+2024-03-12,Medical Checkup,-2500,debit
+2024-03-14,Zomato Order,-630,debit
+2024-03-15,Internet Bill,-999,debit
+2024-03-16,Myntra Clothing,-3200,debit
+2024-03-18,Petrol Pump,-2600,debit
+2024-03-20,Spotify Premium,-119,debit
+2024-03-22,Starbucks,-420,debit
+2024-03-25,KFC Meal,-780,debit
+2024-03-28,Airtel Recharge,-599,debit
+2024-03-29,Book Purchase,-850,debit
+2024-04-01,Salary Credit,75000,credit
+2024-04-02,Rent Payment,-25000,debit
+2024-04-04,Swiggy Food Order,-540,debit
+2024-04-06,DMart Groceries,-2900,debit
+2024-04-08,Uber Ride,-320,debit
+2024-04-10,Netflix Subscription,-499,debit
+2024-04-12,Pharmacy,-720,debit
+2024-04-14,Zomato Order,-590,debit
+2024-04-15,Electricity Bill,-1950,debit
+2024-04-16,Amazon Prime,-1499,debit
+2024-04-18,Petrol Pump,-2400,debit
+2024-04-20,Movie Tickets,-850,debit
+2024-04-22,Gym Membership,-1500,debit
+2024-04-25,Restaurant Dinner,-2100,debit
+2024-04-28,Mobile Recharge,-599,debit
+2024-04-30,SIP Investment,-5000,debit
