@@ -6,7 +6,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/finplan-agent.git
+git clone https://github.com/983111/finplan-agent.git
 cd finplan-agent
 
 # Create virtual environment
