@@ -21,7 +21,7 @@ An autonomous AI agent that provides personalized financial planning with explai
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/finplan-agent.git
+git clone https://github.com/983111/finplan-agent.git
 cd finplan-agent
 ```
 
