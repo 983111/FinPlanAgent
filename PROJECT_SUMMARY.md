@@ -59,7 +59,7 @@ finplan-agent/
 
 ### 1. Installation
 ```bash
-git clone <your-repo-url>
+git clone (https://github.com/983111/FinPlanAgent)
 cd finplan-agent
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
