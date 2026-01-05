@@ -1,0 +1,142 @@
+# FinPlanAgent Configuration
+
+# LLM Settings
+llm:
+  model: "gpt-4"
+  temperature: 0.7
+  max_tokens: 1000
+
+# Budget Constraints (as % of income)
+budget_constraints:
+  housing:
+    min: 0.20
+    max: 0.35
+    recommended: 0.30
+  groceries:
+    min: 0.10
+    max: 0.20
+    recommended: 0.15
+  transportation:
+    min: 0.05
+    max: 0.15
+    recommended: 0.10
+  utilities:
+    min: 0.05
+    max: 0.10
+    recommended: 0.08
+  healthcare:
+    min: 0.05
+    max: 0.15
+    recommended: 0.10
+  food_dining:
+    min: 0.00
+    max: 0.10
+    recommended: 0.05
+  entertainment:
+    min: 0.00
+    max: 0.08
+    recommended: 0.05
+  shopping:
+    min: 0.00
+    max: 0.10
+    recommended: 0.05
+  education:
+    min: 0.00
+    max: 0.15
+    recommended: 0.10
+  insurance:
+    min: 0.05
+    max: 0.10
+    recommended: 0.08
+  investment:
+    min: 0.00
+    max: 0.30
+    recommended: 0.15
+  others:
+    min: 0.00
+    max: 0.10
+    recommended: 0.05
+
+# Financial Health Thresholds
+thresholds:
+  savings_rate:
+    excellent: 30
+    good: 20
+    fair: 10
+    poor: 0
+  
+  emergency_fund_months:
+    excellent: 6
+    good: 3
+    fair: 1
+    poor: 0
+  
+  debt_to_income:
+    excellent: 0.20
+    good: 0.35
+    fair: 0.50
+    poor: 1.00
+
+# Category Classifications
+category_types:
+  essential:
+    - housing
+    - utilities
+    - groceries
+    - healthcare
+    - insurance
+    - transportation
+    - education
+  
+  discretionary:
+    - food_dining
+    - entertainment
+    - shopping
+    - others
+  
+  financial:
+    - investment
+    - transfer
+    - salary
+
+# Optimization Settings
+optimization:
+  default_savings_goal: 20  # percentage
+  max_iterations: 1000
+  solver: "ECOS"
+  tolerance: 1e-6
+
+# Analysis Settings
+analysis:
+  anomaly_threshold: 2.5  # standard deviations
+  recurring_interval_tolerance: 0.2  # 20% variation
+  trend_analysis_months: 3
+  min_transactions_for_analysis: 10
+
+# Visualization Settings
+visualization:
+  default_chart_height: 600
+  default_chart_width: 800
+  color_scheme:
+    income: "#06FFA5"
+    expense: "#E63946"
+    savings: "#2E86AB"
+    investment: "#F77F00"
+  
+# Export Settings
+export:
+  default_format: "xlsx"
+  include_charts: true
+  date_format: "%Y-%m-%d"
+
+# Risk Assessment
+risk_assessment:
+  volatility_thresholds:
+    low: 0.15
+    medium: 0.30
+    high: 1.00
+  
+  discretionary_ratio_thresholds:
+    low: 0.30
+    medium: 0.50
+    high: 1.00
