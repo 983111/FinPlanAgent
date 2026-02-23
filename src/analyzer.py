@@ -21,7 +21,7 @@ class TransactionAnalyzer:
                      'mobile recharge', 'broadband', 'wifi'],
         'entertainment': ['movie', 'netflix', 'spotify', 'prime', 'theater',
                          'concert', 'game', 'xbox', 'playstation', 'hotstar'],
-        'shopping': ['amazon', 'flipkart', 'myntra', 'mall', 'store', 'shop',
+        'shopping': ['amazon', 'flipkart', 'myntra', 'mall', 'shop',
                     'clothing', 'shoes', 'fashion'],
         'healthcare': ['hospital', 'doctor', 'pharmacy', 'medical', 'clinic',
                       'medicine', 'health', 'dental', 'apollo', 'max healthcare'],
@@ -146,6 +146,7 @@ class TransactionAnalyzer:
             DataFrame with anomalies flagged
         """
         df = df.copy()
+        df['is_anomaly'] = False
         
         # Calculate Z-scores for amounts within each category
         df['amount_abs'] = df['amount'].abs()
@@ -163,7 +164,7 @@ class TransactionAnalyzer:
                     df.loc[mask, 'is_anomaly'] = z_scores.abs() > threshold
         
         # Fill NaN anomaly flags with False
-        df['is_anomaly'] = df.get('is_anomaly', False).fillna(False)
+        df['is_anomaly'] = df['is_anomaly'].fillna(False)
         
         return df
     
