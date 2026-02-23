@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import sys
-import re
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -117,10 +116,8 @@ if st.session_state.agent_ready:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 raw_response = st.session_state.agent.chat(prompt)
-                
-                # Filter out the <think> tags for a clean response
-                clean_response = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
-                
+                clean_response = st.session_state.agent._sanitize_response(raw_response)
+
                 st.markdown(clean_response)
                 st.session_state.messages.append({"role": "assistant", "content": clean_response})
 else:
