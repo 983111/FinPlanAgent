@@ -1,6 +1,7 @@
 import os
 from typing import Dict, List, Optional
 import json
+import re
 import requests
 import time
 
@@ -17,7 +18,7 @@ class FinancialAgent:
     SYSTEM_PROMPT = """You are an expert financial advisor AI. Your role is to:
 1. Analyze users' financial situations objectively
 2. Provide personalized, actionable recommendations
-3. Explain your reasoning clearly and transparently
+3. Give users clear, direct conclusions without exposing internal reasoning traces
 4. Help users understand financial concepts
 5. Simulate financial scenarios and their impacts
 
@@ -27,6 +28,11 @@ Always be:
 - Honest about limitations and risks
 - Supportive and non-judgmental
 - Focused on long-term financial health
+
+Response policy:
+- Return only the final user-facing answer
+- Do NOT reveal hidden reasoning, chain-of-thought, or scratch work
+- If needed, provide a brief explanation of recommendations, but avoid step-by-step private deliberation
 
 When making recommendations:
 - Explain WHY each recommendation matters
@@ -193,7 +199,8 @@ When making recommendations:
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        return self._sanitize_response(content)
 
     def _call_streaming(self) -> str:
         """Streaming API call — prints tokens live and returns full text."""
@@ -229,7 +236,13 @@ When making recommendations:
                     continue
 
         print()  # newline after streaming
-        return full_text
+        return self._sanitize_response(full_text)
+
+    def _sanitize_response(self, text: str) -> str:
+        """Strip model reasoning tags and return a clean, final-answer response."""
+        # Some reasoning models emit internal traces between think tags.
+        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+        return cleaned.strip()
 
     # ------------------------------------------------------------------
     # Higher-level helpers (unchanged interface from Gemini version)
