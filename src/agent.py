@@ -240,9 +240,16 @@ When making recommendations:
     def _sanitize_response(self, text: str) -> str:
         """Strip model reasoning traces and return concise final-answer text."""
         cleaned = text or ""
-        # Remove common hidden-reasoning wrappers emitted by reasoning models.
+
+        # Remove hidden-reasoning wrappers when both opening/closing tags are present.
         cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
         cleaned = re.sub(r"<analysis>.*?</analysis>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+
+        # If a stray closing reasoning tag appears, keep only content after the last tag.
+        for closing_tag in ("</think>", "</analysis>"):
+            if closing_tag in cleaned.lower():
+                idx = cleaned.lower().rfind(closing_tag)
+                cleaned = cleaned[idx + len(closing_tag):]
 
         # Remove explicit reasoning headers if they appear in plain text.
         lines = []
