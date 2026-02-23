@@ -137,7 +137,7 @@ class BudgetOptimizer:
         problem = cp.Problem(objective, constraints)
         
         try:
-            problem.solve(solver=cp.ECOS)
+            problem.solve()
             status = problem.status
             
             if status in ['optimal', 'optimal_inaccurate']:
@@ -306,16 +306,59 @@ class BudgetOptimizer:
         total_current = sum(current_spending.values())
         target_budget = income - savings_target
         
-        if total_current > 0:
-            scale_factor = target_budget / total_current
+        categories = list(self.constraints.keys())
+        min_allocations = {
+            cat: income * self.constraints[cat]['min'] for cat in categories
+        }
+        max_allocations = {
+            cat: income * self.constraints[cat]['max'] for cat in categories
+        }
+
+        allocations = {
+            cat: float(np.clip(current_spending.get(cat, min_allocations[cat]),
+                              min_allocations[cat],
+                              max_allocations[cat]))
+            for cat in categories
+        }
+
+        current_total = sum(allocations.values())
+        if current_total <= 0:
+            equal_share = target_budget / len(categories) if categories else 0
             allocations = {
-                cat: amount * scale_factor 
-                for cat, amount in current_spending.items()
+                cat: float(np.clip(equal_share, min_allocations[cat], max_allocations[cat]))
+                for cat in categories
             }
-        else:
-            # Use equal distribution if no current spending data
-            categories = list(self.constraints.keys())
-            allocations = {cat: target_budget / len(categories) for cat in categories}
+            current_total = sum(allocations.values())
+
+        if current_total > 0:
+            scale_factor = target_budget / current_total
+            allocations = {cat: amount * scale_factor for cat, amount in allocations.items()}
+
+        # Re-clip after scaling and redistribute residual while respecting bounds
+        for cat in categories:
+            allocations[cat] = float(np.clip(allocations[cat], min_allocations[cat], max_allocations[cat]))
+
+        residual = target_budget - sum(allocations.values())
+        if abs(residual) > 1e-6:
+            adjustable = categories.copy()
+            while adjustable and abs(residual) > 1e-6:
+                per_cat = residual / len(adjustable)
+                next_adjustable = []
+
+                for cat in adjustable:
+                    proposed = allocations[cat] + per_cat
+                    bounded = float(np.clip(proposed, min_allocations[cat], max_allocations[cat]))
+                    moved = bounded - allocations[cat]
+                    allocations[cat] = bounded
+                    residual -= moved
+
+                    # keep only categories that can still move in the needed direction
+                    if residual > 1e-6 and allocations[cat] < max_allocations[cat]:
+                        next_adjustable.append(cat)
+                    elif residual < -1e-6 and allocations[cat] > min_allocations[cat]:
+                        next_adjustable.append(cat)
+
+                adjustable = next_adjustable
         
         total_allocated = sum(allocations.values())
         
