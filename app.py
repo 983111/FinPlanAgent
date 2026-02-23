@@ -1,6 +1,10 @@
 import streamlit as st
 import os
+import sys
 from dotenv import load_dotenv
+
+# FIX 1: This ensures Streamlit Cloud can find your 'src' folder
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the core modules from your existing source code
 from src.parser import TransactionParser
@@ -64,10 +68,16 @@ with st.sidebar:
                 
                 # Step E: Initialize the AI Agent
                 agent = FinancialAgent(api_key=api_key)
+                
+                # FIX 2: Convert Booleans to strings so they are JSON serializable
+                budget_data = budget.to_dict()
+                if 'constraints_met' in budget_data:
+                    budget_data['constraints_met'] = {k: str(v) for k, v in budget_data['constraints_met'].items()}
+                
                 agent.initialize_context(
                     profile=profile.to_dict(),
                     transactions_summary=patterns,
-                    budget_plan=budget.to_dict()
+                    budget_plan=budget_data  # Use the cleaned data here
                 )
                 
                 # Save the agent into the session state so we can chat with it
