@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import sys
+import re
 from dotenv import load_dotenv
 
 # FIX 1: This ensures Streamlit Cloud can find your 'src' folder
