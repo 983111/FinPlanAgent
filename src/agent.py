@@ -1,6 +1,7 @@
 import os
 from typing import Dict, List, Optional
 import json
+import re
 import requests
 import time
 
@@ -17,7 +18,7 @@ class FinancialAgent:
     SYSTEM_PROMPT = """You are an expert financial advisor AI. Your role is to:
 1. Analyze users' financial situations objectively
 2. Provide personalized, actionable recommendations
-3. Explain your reasoning clearly and transparently
+3. Provide concise, user-facing answers only
 4. Help users understand financial concepts
 5. Simulate financial scenarios and their impacts
 
@@ -27,6 +28,12 @@ Always be:
 - Honest about limitations and risks
 - Supportive and non-judgmental
 - Focused on long-term financial health
+
+Response policy (strict):
+- Keep answers concise and direct
+- Return only the final user-facing answer
+- Never reveal hidden reasoning, chain-of-thought, scratch work, or analysis text
+- If reasoning text appears, discard it and output only the final answer
 
 When making recommendations:
 - Explain WHY each recommendation matters
@@ -143,10 +150,8 @@ When making recommendations:
 
         for attempt in range(self.max_retries):
             try:
-                if stream:
-                    response_text = self._call_streaming()
-                else:
-                    response_text = self._call_complete()
+                # Force non-streaming to avoid exposing partial reasoning tokens.
+                response_text = self._call_complete()
 
                 self.conversation_history.append(
                     {"role": "assistant", "content": response_text}
@@ -177,10 +182,11 @@ When making recommendations:
         }
 
     def _build_payload(self, stream: bool = False) -> Dict:
+        # Force non-streaming mode to ensure only sanitized final answers are returned.
         return {
             "model": self.MODEL,
             "messages": self.conversation_history,
-            "stream": stream,
+            "stream": False,
         }
 
     def _call_complete(self) -> str:
@@ -193,10 +199,11 @@ When making recommendations:
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        return self._sanitize_response(content)
 
     def _call_streaming(self) -> str:
-        """Streaming API call — prints tokens live and returns full text."""
+        """Streaming API call — buffers tokens and prints only sanitized final text."""
         response = requests.post(
             self.API_URL,
             headers=self._build_headers(),
@@ -207,7 +214,6 @@ When making recommendations:
         response.raise_for_status()
 
         full_text = ""
-        print("\nAssistant: ", end="", flush=True)
 
         for line in response.iter_lines():
             if not line:
@@ -223,13 +229,44 @@ When making recommendations:
                     delta = chunk["choices"][0].get("delta", {})
                     token = delta.get("content", "")
                     if token:
-                        print(token, end="", flush=True)
                         full_text += token
                 except (json.JSONDecodeError, KeyError):
                     continue
 
-        print()  # newline after streaming
-        return full_text
+        clean_text = self._sanitize_response(full_text)
+        print(f"\nAssistant: {clean_text}", flush=True)
+        return clean_text
+
+    def _sanitize_response(self, text: str) -> str:
+        """Strip model reasoning traces and return concise final-answer text."""
+        cleaned = text or ""
+
+        # Remove hidden-reasoning wrappers when both opening/closing tags are present.
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+        cleaned = re.sub(r"<analysis>.*?</analysis>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+
+        # If a stray closing reasoning tag appears, keep only content after the last tag.
+        for closing_tag in ("</think>", "</analysis>"):
+            if closing_tag in cleaned.lower():
+                idx = cleaned.lower().rfind(closing_tag)
+                cleaned = cleaned[idx + len(closing_tag):]
+
+        # Remove explicit reasoning headers if they appear in plain text.
+        lines = []
+        blocked_prefixes = (
+            "reasoning:",
+            "chain-of-thought:",
+            "analysis:",
+            "thought process:",
+            "internal reasoning:",
+        )
+        for line in cleaned.splitlines():
+            if line.strip().lower().startswith(blocked_prefixes):
+                continue
+            lines.append(line)
+
+        cleaned = "\n".join(lines).strip()
+        return cleaned
 
     # ------------------------------------------------------------------
     # Higher-level helpers (unchanged interface from Gemini version)
