@@ -150,10 +150,8 @@ When making recommendations:
 
         for attempt in range(self.max_retries):
             try:
-                if stream:
-                    response_text = self._call_streaming()
-                else:
-                    response_text = self._call_complete()
+                # Force non-streaming to avoid exposing partial reasoning tokens.
+                response_text = self._call_complete()
 
                 self.conversation_history.append(
                     {"role": "assistant", "content": response_text}
@@ -184,10 +182,11 @@ When making recommendations:
         }
 
     def _build_payload(self, stream: bool = False) -> Dict:
+        # Force non-streaming mode to ensure only sanitized final answers are returned.
         return {
             "model": self.MODEL,
             "messages": self.conversation_history,
-            "stream": stream,
+            "stream": False,
         }
 
     def _call_complete(self) -> str:
