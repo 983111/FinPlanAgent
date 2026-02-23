@@ -18,7 +18,7 @@ class FinancialAgent:
     SYSTEM_PROMPT = """You are an expert financial advisor AI. Your role is to:
 1. Analyze users' financial situations objectively
 2. Provide personalized, actionable recommendations
-3. Give users clear, direct conclusions without exposing internal reasoning traces
+3. Provide concise, user-facing answers only
 4. Help users understand financial concepts
 5. Simulate financial scenarios and their impacts
 
@@ -29,10 +29,11 @@ Always be:
 - Supportive and non-judgmental
 - Focused on long-term financial health
 
-Response policy:
+Response policy (strict):
+- Keep answers concise and direct
 - Return only the final user-facing answer
-- Do NOT reveal hidden reasoning, chain-of-thought, or scratch work
-- If needed, provide a brief explanation of recommendations, but avoid step-by-step private deliberation
+- Never reveal hidden reasoning, chain-of-thought, scratch work, or analysis text
+- If reasoning text appears, discard it and output only the final answer
 
 When making recommendations:
 - Explain WHY each recommendation matters
@@ -203,7 +204,7 @@ When making recommendations:
         return self._sanitize_response(content)
 
     def _call_streaming(self) -> str:
-        """Streaming API call — prints tokens live and returns full text."""
+        """Streaming API call — buffers tokens and prints only sanitized final text."""
         response = requests.post(
             self.API_URL,
             headers=self._build_headers(),
@@ -214,7 +215,6 @@ When making recommendations:
         response.raise_for_status()
 
         full_text = ""
-        print("\nAssistant: ", end="", flush=True)
 
         for line in response.iter_lines():
             if not line:
@@ -230,19 +230,37 @@ When making recommendations:
                     delta = chunk["choices"][0].get("delta", {})
                     token = delta.get("content", "")
                     if token:
-                        print(token, end="", flush=True)
                         full_text += token
                 except (json.JSONDecodeError, KeyError):
                     continue
 
-        print()  # newline after streaming
-        return self._sanitize_response(full_text)
+        clean_text = self._sanitize_response(full_text)
+        print(f"\nAssistant: {clean_text}", flush=True)
+        return clean_text
 
     def _sanitize_response(self, text: str) -> str:
-        """Strip model reasoning tags and return a clean, final-answer response."""
-        # Some reasoning models emit internal traces between think tags.
-        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
-        return cleaned.strip()
+        """Strip model reasoning traces and return concise final-answer text."""
+        cleaned = text or ""
+        # Remove common hidden-reasoning wrappers emitted by reasoning models.
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+        cleaned = re.sub(r"<analysis>.*?</analysis>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+
+        # Remove explicit reasoning headers if they appear in plain text.
+        lines = []
+        blocked_prefixes = (
+            "reasoning:",
+            "chain-of-thought:",
+            "analysis:",
+            "thought process:",
+            "internal reasoning:",
+        )
+        for line in cleaned.splitlines():
+            if line.strip().lower().startswith(blocked_prefixes):
+                continue
+            lines.append(line)
+
+        cleaned = "\n".join(lines).strip()
+        return cleaned
 
     # ------------------------------------------------------------------
     # Higher-level helpers (unchanged interface from Gemini version)
