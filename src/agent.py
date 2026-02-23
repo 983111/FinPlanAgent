@@ -266,6 +266,21 @@ When making recommendations:
             lines.append(line)
 
         cleaned = "\n".join(lines).strip()
+
+        # Remove known planning-style leakage blocks that may appear without tags.
+        cleaned = re.sub(
+            r"(?is)^\s*we\s+have\s+a\s+user\s+asking.*?(?=\n\s*[#*A-Z0-9]|\Z)",
+            "",
+            cleaned,
+        ).strip()
+
+        # Remove planner cue lines if the model leaks instruction text.
+        cleaned = re.sub(
+            r"(?im)^\s*(now produce final answer\.?|proceed\.?|final answer:)\s*",
+            "",
+            cleaned,
+        ).strip()
+
         return cleaned
 
     # ------------------------------------------------------------------
