@@ -95,6 +95,29 @@ When making recommendations:
             },
         ]
 
+    def initialize_generic_csv_context(self, csv_text: str, filename: str = "data.csv"):
+        """
+        Initialize the agent with raw CSV data for generic analysis.
+        """
+        self.context = {"raw_csv": csv_text}
+
+        context_msg = (
+            f"The user has uploaded a financial dataset named '{filename}'. "
+            f"Here is the raw data:\n\n{csv_text}\n\n"
+            "Please act as an expert data analyst and financial advisor. "
+            "Understand the columns and rows, and be ready to answer any questions, "
+            "summarize the data, or find insights based on this specific dataset."
+        )
+
+        self.conversation_history = [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "user", "content": context_msg},
+            {
+                "role": "assistant",
+                "content": f"I have successfully analyzed the dataset '{filename}'. What would you like to know about it?",
+            },
+        ]
+
     # ------------------------------------------------------------------
     # Core chat method
     # ------------------------------------------------------------------
